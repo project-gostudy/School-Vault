@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node src/server.js",
-    "build:css": "npx tailwindcss -i ./public/css/input.css -o ./public/css/style.css --watch"
+    "build": "npm run build:css",
+    "build:css": "npx tailwindcss -i ./public/css/input.css -o ./public/css/style.css"
   },
   "keywords": [
     "study",

@@ -6,13 +6,17 @@ const path = require('path');
 const fs = require('fs');
 
 // Ensure directories exist
-const uploadsDir = path.join(__dirname, '../../uploads');
-const dataDir = path.join(__dirname, '../../data');
+const isVercel = process.env.VERCEL === '1';
+const uploadsDir = isVercel ? path.join('/tmp', 'uploads') : path.join(__dirname, '../../uploads');
+const dataDir = isVercel ? path.join('/tmp', 'data') : path.join(__dirname, '../../data');
 const dataFile = path.join(dataDir, 'files.json');
 
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, JSON.stringify([], null, 2));
+
+console.log(`Using uploads directory: ${uploadsDir}`);
+console.log(`Using data directory: ${dataDir}`);
 
 // Subject detection keywords
 const subjectKeywords = {

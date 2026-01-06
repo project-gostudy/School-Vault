@@ -15,7 +15,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+const uploadsPath = process.env.VERCEL === '1' 
+  ? path.join('/tmp', 'uploads') 
+  : path.join(__dirname, '../uploads');
+app.use('/uploads', express.static(uploadsPath));
 
 // API routes
 app.use('/api', filesRouter);
@@ -25,7 +28,11 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`🚀 School File Vault running at http://localhost:${PORT}`);
-});
+// Start server if run directly
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 School File Vault running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
