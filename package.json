@@ -1,0 +1,28 @@
+{
+  "name": "school-file-vault",
+  "version": "1.0.0",
+  "description": "Apple-inspired study management application",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js",
+    "build:css": "npx tailwindcss -i ./public/css/input.css -o ./public/css/style.css --watch"
+  },
+  "keywords": [
+    "study",
+    "management",
+    "education",
+    "files"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}
