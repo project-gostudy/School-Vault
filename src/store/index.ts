@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { addMinutes, startOfToday } from 'date-fns';
 
 // --- Type Definitions ---
 
@@ -25,8 +24,8 @@ export interface PlanBlock {
   type: 'focus' | 'break' | 'free';
   startTime: string; // ISO
   endTime: string; // ISO
-  description: string;
-  taskId?: string;
+  activity: string; // Renamed from description to match backend
+  relatedAssignmentId?: string; // Link to source
 }
 
 interface AppState {
@@ -34,6 +33,7 @@ interface AppState {
   assignments: Assignment[];
   tasks: Task[];
   todaysPlan: PlanBlock[];
+  reasoning: string;
   
   // Perplexity / AI Reasoning State
   isPlanning: boolean;
@@ -44,55 +44,76 @@ interface AppState {
   generatePlan: () => Promise<void>;
 }
 
-// --- Mock Data ---
-
-const MOCK_ASSIGNMENTS: Assignment[] = [
-  { id: 'a1', title: 'Calculus Ch. 4 Review', subject: 'Math', dueDate: new Date(), status: 'pending' },
-  { id: 'a2', title: 'Read "The Stranger"', subject: 'Literature', dueDate: new Date(), status: 'pending' },
-  { id: 'a3', title: 'Physics Lab Report', subject: 'Science', dueDate: addMinutes(new Date(), 24 * 60), status: 'pending' },
-];
-
 // --- Store Implementation ---
 
-export const useStore = create<AppState>((set) => ({
+const API_BASE = 'http://localhost:3000';
+
+export const useStore = create<AppState>((set, get) => ({
   assignments: [],
   tasks: [],
   todaysPlan: [],
+  reasoning: '',
   isPlanning: false,
 
   refreshData: async () => {
-    // Simulate API fetch delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    set({ assignments: MOCK_ASSIGNMENTS });
+    try {
+        const [assignRes, planRes] = await Promise.all([
+            fetch(`${API_BASE}/assignments`),
+            fetch(`${API_BASE}/plan/today`)
+        ]);
+        
+        const assignments = await assignRes.json();
+        const plan = await planRes.json();
+        
+        set({ 
+            assignments, 
+            todaysPlan: plan?.blocks || [],
+            reasoning: plan?.reasoning || '',
+            // Extract tasks from plan blocks for the Today view
+            tasks: (plan?.blocks || [])
+                .filter((b: any) => b.type === 'focus')
+                .map((b: any) => ({
+                    id: b.id, // Use block id as task id
+                    title: b.activity,
+                    isCompleted: assignments.find((a: any) => a.id === b.relatedAssignmentId)?.status === 'completed',
+                    assignmentId: b.relatedAssignmentId
+                }))
+        });
+    } catch (err) {
+        console.error('Failed to refresh data:', err);
+    }
   },
 
   generatePlan: async () => {
     set({ isPlanning: true });
-    // Simulate Perplexity reasoning
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Mock Reasoning: "Schedule Math first because it's hardest, then Lit."
-    const today = startOfToday();
-    const startWork = addMinutes(today, 16 * 60); // 4:00 PM
-    
-    const tasks: Task[] = [
-      { id: 't1', title: 'Calculus Ch. 4 Review', durationMinutes: 45, assignmentId: 'a1', isCompleted: false, scheduledTime: startWork.toISOString() },
-      { id: 't2', title: 'Read "The Stranger"', durationMinutes: 30, assignmentId: 'a2', isCompleted: false, scheduledTime: addMinutes(startWork, 60).toISOString() }, // Break in between
-    ];
-
-    const plan: PlanBlock[] = [
-      { id: 'p1', type: 'focus', startTime: startWork.toISOString(), endTime: addMinutes(startWork, 45).toISOString(), description: 'Deep Focus', taskId: 't1' },
-      { id: 'p2', type: 'break', startTime: addMinutes(startWork, 45).toISOString(), endTime: addMinutes(startWork, 60).toISOString(), description: 'Recharge' },
-      { id: 'p3', type: 'focus', startTime: addMinutes(startWork, 60).toISOString(), endTime: addMinutes(startWork, 90).toISOString(), description: 'Reading', taskId: 't2' },
-      { id: 'p4', type: 'free', startTime: addMinutes(startWork, 90).toISOString(), endTime: addMinutes(startWork, 300).toISOString(), description: 'Free Evening' },
-    ];
-    
-    set({ tasks, todaysPlan: plan, isPlanning: false });
+    try {
+        const res = await fetch(`${API_BASE}/plan/generate`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            await get().refreshData();
+        }
+    } catch (err) {
+        console.error('Plan generation failed:', err);
+    } finally {
+        set({ isPlanning: false });
+    }
   },
 
-  markTaskComplete: (taskId) => {
-    set((state) => ({
-      tasks: state.tasks.map(t => t.id === taskId ? { ...t, isCompleted: true } : t)
-    }));
+  markTaskComplete: async (taskId) => {
+    const task = get().tasks.find(t => t.id === taskId);
+    if (!task?.assignmentId) return;
+
+    try {
+        await fetch(`${API_BASE}/assignments/${task.assignmentId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'completed' })
+        });
+        
+        await get().refreshData();
+    } catch (err) {
+        console.error('Failed to mark task complete:', err);
+    }
   }
 }));

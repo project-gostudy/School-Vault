@@ -1,19 +1,20 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
-import cron from 'node-cron';
 import { AxiosIngestionService } from './services/ingestion';
 import { AiPlannerService } from './services/ai';
-import { AsanaSyncService } from './services/sync';
+import { v4 as uuidv4 } from 'uuid';
 
 // --- Configuration ---
 const PORT = 3000;
-const CRON_SCHEDULE = '*/15 * * * *'; // Every 15 minutes
 
 // --- Services ---
 const ingestion = new AxiosIngestionService();
 const planner = new AiPlannerService(process.env.PERPLEXITY_API_KEY || 'mock');
-const sync = new AsanaSyncService();
+
+// --- In-memory Store (Mocking DB Persistence for now, keeping it simple) ---
+let currentAssignments: any[] = [];
+let currentPlan: any = null;
 
 // --- Server ---
 const server = Fastify({ logger: true });
@@ -29,55 +30,57 @@ server.get('/health', async () => {
 });
 
 server.get('/assignments', async () => {
-    // In a real app, this would query the DB
-    const assignments = await ingestion.fetchAssignments();
-    return assignments;
+    return currentAssignments;
 });
 
-// --- Orchestration Logic ---
+server.get('/plan/today', async () => {
+    return currentPlan;
+});
 
-async function runOrchestration() {
-    console.log('[Orchestrator] Starting cycle...');
+server.post('/plan/generate', async () => {
+    console.log('[Orchestrator] Manual generation triggered...');
     try {
         // 1. Ingest
         const assignments = await ingestion.fetchAssignments();
+        currentAssignments = assignments;
         
-        // 2. Mock Change Detection (Always true for prototype)
-        const hasChanges = true; 
+        // 2. Plan (Always generate if triggered)
+        console.log('[Orchestrator] Generating fresh AI plan...');
+        const plan = await planner.generatePlan(assignments, {});
+        currentPlan = plan;
         
-        if (hasChanges) {
-            console.log('[Orchestrator] Changes detected. Planning...');
-            
-            // 3. Plan
-            const plan = await planner.generatePlan(assignments, {});
-            
-            // 4. Sync
-            await sync.syncPlan(plan);
-            
-            console.log('[Orchestrator] Cycle completed successfully.');
-        } else {
-            console.log('[Orchestrator] No changes. Skipping.');
-        }
-
-    } catch (error) {
-        console.error('[Orchestrator] Cycle failed', error);
+        console.log('[Orchestrator] Generation completed successfully.');
+        return { success: true, assignmentsCount: assignments.length, planDate: plan.date };
+    } catch (error: any) {
+        console.error('[Orchestrator] Generation failed', error);
+        return { success: false, error: error.message };
     }
-}
+});
+
+server.patch('/assignments/:id', async (request: any, reply) => {
+    const { id } = request.params;
+    const { status } = request.body;
+    
+    currentAssignments = currentAssignments.map(a => 
+        a.id === id ? { ...a, status } : a
+    );
+    
+    return { success: true };
+});
 
 // --- Bootstrap ---
 
 const start = async () => {
   try {
-    // Schedule Cron
-    cron.schedule(CRON_SCHEDULE, runOrchestration);
-    console.log(`[Cron] Scheduled orchestration for ${CRON_SCHEDULE}`);
-
     // Start Server
     await server.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`[Server] Running on http://localhost:${PORT}`);
     
-    // Run once on startup for demo purposes
-    runOrchestration();
+    // Initial fetch to have data ready
+    ingestion.fetchAssignments().then(data => {
+        currentAssignments = data;
+        console.log('[Server] Initial assignments loaded.');
+    }).catch(err => console.error('[Server] Initial fetch failed', err));
 
   } catch (err) {
     server.log.error(err);
