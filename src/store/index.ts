@@ -56,11 +56,14 @@ export const useStore = create<AppState>((set, get) => ({
   isPlanning: false,
 
   refreshData: async () => {
+    console.log('[Store] Refreshing data from:', API_BASE);
     try {
         const [assignRes, planRes] = await Promise.all([
             fetch(`${API_BASE}/assignments`),
             fetch(`${API_BASE}/plan/today`)
         ]);
+        
+        console.log('[Store] Refresh response status:', assignRes.status, planRes.status);
         
         const assignments = await assignRes.json();
         const plan = await planRes.json();
@@ -69,32 +72,36 @@ export const useStore = create<AppState>((set, get) => ({
             assignments, 
             todaysPlan: plan?.blocks || [],
             reasoning: plan?.reasoning || '',
-            // Extract tasks from plan blocks for the Today view
             tasks: (plan?.blocks || [])
                 .filter((b: any) => b.type === 'focus')
                 .map((b: any) => ({
-                    id: b.id, // Use block id as task id
+                    id: b.id,
                     title: b.activity,
                     isCompleted: assignments.find((a: any) => a.id === b.relatedAssignmentId)?.status === 'completed',
                     assignmentId: b.relatedAssignmentId
                 }))
         });
     } catch (err) {
-        console.error('Failed to refresh data:', err);
+        console.error('[Store] Failed to refresh data:', err);
     }
   },
 
   generatePlan: async () => {
+    console.log('[Store] Starting plan generation at:', `${API_BASE}/plan/generate`);
     set({ isPlanning: true });
     try {
         const res = await fetch(`${API_BASE}/plan/generate`, { method: 'POST' });
+        console.log('[Store] Generation response status:', res.status);
         const data = await res.json();
+        console.log('[Store] Generation response data:', data);
         
         if (data.success) {
             await get().refreshData();
+        } else {
+            console.error('[Store] Generation reported failure:', data.error);
         }
     } catch (err) {
-        console.error('Plan generation failed:', err);
+        console.error('[Store] Plan generation fetch failed:', err);
     } finally {
         set({ isPlanning: false });
     }
