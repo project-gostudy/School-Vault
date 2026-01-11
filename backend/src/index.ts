@@ -17,13 +17,23 @@ let currentAssignments: any[] = [];
 let currentPlan: any = null;
 
 // --- Server ---
-const server = Fastify({ logger: true });
+const server = Fastify({ 
+    logger: true,
+    trustProxy: true // Important for Render/Vercel
+});
 
 server.register(cors, { 
-  origin: '*', // For development
+  origin: true, // Dynamically allow the origin of the request
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 });
 
 // --- API Endpoints ---
+
+server.get('/', async () => {
+    return { status: 'online', service: 'School Vault API' };
+});
 
 server.get('/health', async () => {
   return { status: 'ok', timestamp: new Date().toISOString() };
