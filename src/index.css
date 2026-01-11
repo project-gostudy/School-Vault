@@ -1,0 +1,28 @@
+@import '@fontsource/radio-canada-big';
+@import '@fontsource/source-serif-pro';
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #FDFBF7;
+  --color-ink: #1A1A1A;
+  --color-subtle: #5A5A5A;
+  --color-ui-border: #E5E5E5;
+  --color-sage: #8DA399;
+  --color-clay: #CFB7A4;
+  --color-slate: #4A5568;
+
+  --font-display: "Radio Canada Big", sans-serif;
+  --font-body: "Source Serif Pro", serif;
+}
+
+body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-weight: 400;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 500;
+}
