@@ -6,7 +6,7 @@ import { AiPlannerService } from './services/ai';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Configuration ---
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // --- Services ---
 const ingestion = new AxiosIngestionService();
