@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: school-vault-backend
+    runtime: docker
+    env: static
+    # Path to your backend directory
+    rootDir: backend
+    # Plan to use (free tier)
+    plan: free
+    # Environment variables (referenced here, set them in Render dashboard for security)
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: AXIOS_CUSTOMER_ID
+        sync: false
+      - key: AXIOS_USERNAME
+        sync: false
+      - key: AXIOS_PASSWORD
+        sync: false
