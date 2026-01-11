@@ -1,6 +1,6 @@
 # Use the official Microsoft Playwright image as the base
 # This image comes with all the necessary system dependencies pre-installed
-FROM mcr.microsoft.com/playwright:v1.49.0-jammy
+FROM mcr.microsoft.com/playwright:v1.57.0-jammy
 
 # Create and set the working directory
 WORKDIR /app
